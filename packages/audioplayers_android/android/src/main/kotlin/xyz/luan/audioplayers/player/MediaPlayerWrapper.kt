@@ -39,15 +39,19 @@ class MediaPlayerWrapper(
     override fun setRate(rate: Float) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             mediaPlayer.playbackParams = mediaPlayer.playbackParams.setSpeed(rate)
-        } else if (rate == 1.0f) {
-            mediaPlayer.start()
-        } else {
+        } else if (rate != 1.0f) {
             error("Changing the playback rate is only available for Android M/23+ or using LOW_LATENCY mode.")
         }
     }
 
     override fun setSource(source: Source) {
         reset()
+        // reset() drops the native player back to default audio attributes
+        // (USAGE_MEDIA). Reapply the configured context so a second source,
+        // or a context updated on a live player, keeps the stream the app
+        // chose (alarm, notification, …) instead of silently reverting to
+        // the media stream.
+        wrappedPlayer.context.setAttributesOnPlayer(mediaPlayer)
         source.setForMediaPlayer(mediaPlayer)
     }
 
@@ -56,8 +60,18 @@ class MediaPlayerWrapper(
     }
 
     override fun start() {
-        // Setting playback rate instead of mediaPlayer.start().
-        setRate(wrappedPlayer.rate)
+        // Explicitly start the player. The previous implementation started
+        // playback only as a side effect of setting PlaybackParams (setRate),
+        // which several OEM media frameworks do not implement: the call
+        // succeeds, nothing plays, and no error or event is ever emitted
+        // (observed on POS/TV boxes and reported for various handsets).
+        // start() is the documented way to enter the Started state, and is a
+        // no-op if PlaybackParams already started playback on stock Android.
+        val rate = wrappedPlayer.rate
+        if (rate != 1.0f && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            mediaPlayer.playbackParams = mediaPlayer.playbackParams.setSpeed(rate)
+        }
+        mediaPlayer.start()
     }
 
     override fun pause() {

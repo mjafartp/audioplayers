@@ -67,11 +67,14 @@ class AudioplayersPlugin : FlutterPlugin {
             }
 
             "setAudioContext" -> {
+                // Apply the *new* context to the AudioManager. This previously
+                // applied the old default before swapping, so the values the
+                // caller just chose never reached the system until a second,
+                // unrelated call happened to come in.
+                defaultAudioContext = call.audioContext()
                 val audioManager = getAudioManager()
                 audioManager.mode = defaultAudioContext.audioMode
                 audioManager.isSpeakerphoneOn = defaultAudioContext.isSpeakerphoneOn
-
-                defaultAudioContext = call.audioContext()
             }
 
             "emitLog" -> {

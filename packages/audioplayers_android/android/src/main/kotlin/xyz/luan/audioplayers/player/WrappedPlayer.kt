@@ -344,6 +344,11 @@ class WrappedPlayer internal constructor(
             // When an error occurs, reset player to not [prepared].
             // Then no functions will be called, which end up in an illegal player state.
             prepared = false
+            // Also drop `playing`: the native player is no longer playing, and
+            // leaving the flag set makes every later play() a silent no-op —
+            // the player looks alive but can never ring again until an
+            // explicit stop() or pause().
+            playing = false
             handleError("AndroidAudioError", whatMsg, extraMsg)
         }
         return false
